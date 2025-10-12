@@ -1,38 +1,139 @@
-.App {
-  text-align: center;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
+/* Layout */
+.full-screen-center {
   min-height: 100vh;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
+  padding: 1rem;
+}
+
+.bg-gradient-main {
+  background: linear-gradient(to bottom right, #7c3aed, #3b82f6);
+  /* Tailwind purple-600 to blue-600 */
+}
+
+/* Cards */
+.card {
+  background-color: white;
+  border-radius: 0.5rem;
+  /* rounded-lg */
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  /* shadow-2xl */
+  padding: 1.5rem;
+  /* p-6 */
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: #7c3aed;
+  /* purple-600 */
   color: white;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: background-color 0.2s;
 }
 
-.App-link {
-  color: #61dafb;
+.btn-primary:hover {
+  background-color: #6d28d9;
+  /* purple-700 */
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.btn-disabled {
+  background-color: #9ca3af;
+  /* gray-400 */
+  cursor: not-allowed;
+}
+
+/* Secondary buttons */
+.btn-secondary {
+  background-color: #3b82f6;
+  /* blue-600 */
+  color: white;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+}
+
+.btn-secondary:hover {
+  background-color: #2563eb;
+  /* blue-700 */
+}
+
+/* Grid cells */
+.grid-cell {
+  aspect-ratio: 1/1;
+  /* aspect-square */
+  font-size: 2rem;
+  /* text-2xl */
+  font-weight: 700;
+  /* font-bold */
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+}
+
+.grid-cell.selected {
+  background-color: #7c3aed;
+  /* purple-600 */
+  color: white;
+  transform: scale(1.1);
+}
+
+.grid-cell.default {
+  background-color: white;
+  color: #1f2937;
+  /* gray-800 */
+}
+
+.grid-cell.default:hover {
+  background-color: #ede9fe;
+  /* purple-100 */
+}
+
+/* Text helpers */
+.text-purple-main {
+  color: #7c3aed;
+}
+
+.text-red-alert {
+  color: #dc2626;
+}
+
+/* red-600 */
+.text-gray-main {
+  color: #4b5563;
+}
+
+/* gray-700 */
+.text-gray-sub {
+  color: #6b7280;
+}
+
+/* gray-600 */
+
+/* Input */
+.input-default {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #d1d5db;
+  /* gray-300 */
+  border-radius: 0.5rem;
+}
+
+.input-default:focus {
+  border-color: #7c3aed;
+  /* purple-500 */
+  outline: none;
+}
+
+.input-uppercase {
+  text-transform: uppercase;
 }

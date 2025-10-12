@@ -1,13 +1,12 @@
 # Dockerfile for React client
-FROM node:20-alpine
+FROM node:20
 
-# Set working directory inside container
 WORKDIR /app
 
-# Copy only package files first to leverage Docker cache
+# Copy package files first (for caching)
 COPY package*.json ./
 
-# Install dependencies
+# Install all dependencies including dev deps (Tailwind, PostCSS, Autoprefixer)
 RUN npm install
 
 # Copy the rest of the app
@@ -16,5 +15,4 @@ COPY . .
 # Expose React dev server port
 EXPOSE 3000
 
-# Start the React development server
 CMD ["npm", "start"]
