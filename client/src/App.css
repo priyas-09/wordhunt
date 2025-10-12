@@ -2,138 +2,223 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Layout */
-.full-screen-center {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
+/* Custom game-specific styles */
+@layer components {
+
+  /* Grid cells with enhanced styling */
+  .grid-cell {
+    @apply aspect-square text-xl font-bold rounded-lg transition-all duration-200 ease-in-out;
+    @apply border-2 border-gray-200 shadow-sm;
+    min-height: 50px;
+    min-width: 50px;
+  }
+
+  .grid-cell.default {
+    @apply bg-white text-gray-800 hover:bg-primary-50 hover:border-primary-300;
+    @apply hover:shadow-md hover:scale-105;
+  }
+
+  .grid-cell.selected {
+    @apply bg-primary-600 text-white border-primary-600;
+    @apply shadow-lg scale-110 transform;
+    animation: pulse 1.5s infinite;
+  }
+
+  .grid-cell:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  /* Enhanced buttons */
+  .btn-primary {
+    @apply bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold;
+    @apply hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    @apply transition-all duration-200 ease-in-out transform hover:scale-105;
+    @apply flex items-center justify-center gap-2;
+  }
+
+  .btn-primary:disabled {
+    @apply bg-gray-400 cursor-not-allowed hover:scale-100;
+  }
+
+  .btn-secondary {
+    @apply bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold;
+    @apply hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+    @apply transition-all duration-200 ease-in-out transform hover:scale-105;
+  }
+
+  .btn-danger {
+    @apply bg-red-500 text-white px-4 py-2 rounded-lg font-semibold;
+    @apply hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
+    @apply transition-all duration-200 ease-in-out;
+  }
+
+  .btn-success {
+    @apply bg-green-600 text-white px-6 py-3 rounded-lg font-semibold;
+    @apply hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2;
+    @apply transition-all duration-200 ease-in-out transform hover:scale-105;
+  }
+
+  /* Enhanced inputs */
+  .input-default {
+    @apply w-full px-4 py-3 border-2 border-gray-300 rounded-lg;
+    @apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200;
+    @apply transition-all duration-200 ease-in-out;
+  }
+
+  /* Game containers */
+  .game-container {
+    @apply bg-white rounded-xl shadow-game-lg p-6;
+    @apply animate-fade-in;
+  }
+
+  .game-grid {
+    @apply bg-gray-50 p-6 rounded-xl shadow-inner;
+  }
+
+  .player-card {
+    @apply bg-white p-3 rounded-lg shadow-sm border border-gray-100;
+    @apply hover:shadow-md transition-all duration-200;
+  }
+
+  .word-item {
+    @apply bg-white p-3 rounded-lg shadow-sm border border-gray-100;
+    @apply hover:shadow-md transition-all duration-200;
+    @apply animate-slide-up;
+  }
+
+  /* Score animations */
+  .score-update {
+    @apply animate-bounce text-green-600 font-bold;
+  }
+
+  /* Timer styling */
+  .timer-warning {
+    @apply text-red-500 animate-pulse;
+  }
+
+  .timer-normal {
+    @apply text-gray-700;
+  }
 }
 
-.bg-gradient-main {
-  background: linear-gradient(to bottom right, #7c3aed, #3b82f6);
-  /* Tailwind purple-600 to blue-600 */
+/* Custom animations */
+@layer utilities {
+  .animate-word-found {
+    animation: wordFound 0.6s ease-in-out;
+  }
+
+  .animate-cell-select {
+    animation: cellSelect 0.2s ease-out;
+  }
+
+  .animate-game-start {
+    animation: gameStart 1s ease-out;
+  }
 }
 
-/* Cards */
-.card {
-  background-color: white;
-  border-radius: 0.5rem;
-  /* rounded-lg */
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  /* shadow-2xl */
-  padding: 1.5rem;
-  /* p-6 */
+@keyframes wordFound {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.1);
+    background-color: #10b981;
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
-/* Buttons */
-.btn-primary {
-  background-color: #7c3aed;
-  /* purple-600 */
-  color: white;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  transition: background-color 0.2s;
+@keyframes cellSelect {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+
+  100% {
+    transform: scale(1.1);
+  }
 }
 
-.btn-primary:hover {
-  background-color: #6d28d9;
-  /* purple-700 */
+@keyframes gameStart {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.btn-disabled {
-  background-color: #9ca3af;
-  /* gray-400 */
-  cursor: not-allowed;
+/* Responsive grid adjustments */
+@media (max-width: 1024px) {
+  .grid-cell {
+    min-height: 45px;
+    min-width: 45px;
+    font-size: 1.5rem;
+  }
 }
 
-/* Secondary buttons */
-.btn-secondary {
-  background-color: #3b82f6;
-  /* blue-600 */
-  color: white;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  font-weight: 600;
+@media (max-width: 768px) {
+  .grid-cell {
+    min-height: 40px;
+    min-width: 40px;
+    font-size: 1.25rem;
+  }
+
+  .game-container {
+    @apply p-4;
+  }
+
+  .game-grid {
+    @apply p-4;
+  }
 }
 
-.btn-secondary:hover {
-  background-color: #2563eb;
-  /* blue-700 */
+@media (max-width: 640px) {
+  .grid-cell {
+    min-height: 35px;
+    min-width: 35px;
+    font-size: 1rem;
+  }
+
+  .game-container {
+    @apply p-3;
+  }
+
+  .game-grid {
+    @apply p-3;
+  }
 }
 
-/* Grid cells */
-.grid-cell {
-  aspect-ratio: 1/1;
-  /* aspect-square */
-  font-size: 2rem;
-  /* text-2xl */
-  font-weight: 700;
-  /* font-bold */
-  border-radius: 0.5rem;
-  transition: all 0.2s;
-}
+@media (max-width: 480px) {
+  .grid-cell {
+    min-height: 30px;
+    min-width: 30px;
+    font-size: 0.875rem;
+  }
 
-.grid-cell.selected {
-  background-color: #7c3aed;
-  /* purple-600 */
-  color: white;
-  transform: scale(1.1);
-}
+  .game-container {
+    @apply p-2;
+  }
 
-.grid-cell.default {
-  background-color: white;
-  color: #1f2937;
-  /* gray-800 */
-}
+  .game-grid {
+    @apply p-2;
+  }
 
-.grid-cell.default:hover {
-  background-color: #ede9fe;
-  /* purple-100 */
-}
+  /* Stack buttons vertically on very small screens */
+  .flex.gap-4 {
+    @apply flex-col gap-2;
+  }
 
-/* Text helpers */
-.text-purple-main {
-  color: #7c3aed;
-}
-
-.text-red-alert {
-  color: #dc2626;
-}
-
-/* red-600 */
-.text-gray-main {
-  color: #4b5563;
-}
-
-/* gray-700 */
-.text-gray-sub {
-  color: #6b7280;
-}
-
-/* gray-600 */
-
-/* Input */
-.input-default {
-  width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #d1d5db;
-  /* gray-300 */
-  border-radius: 0.5rem;
-}
-
-.input-default:focus {
-  border-color: #7c3aed;
-  /* purple-500 */
-  outline: none;
-}
-
-.input-uppercase {
-  text-transform: uppercase;
+  .flex.gap-3 {
+    @apply flex-col gap-2;
+  }
 }
