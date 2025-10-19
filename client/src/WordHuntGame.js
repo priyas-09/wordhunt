@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Users, Crown, Play, LogOut, Plus, Settings, Search } from 'lucide-react';
 import { io } from 'socket.io-client';
+import { useAuth } from './AuthContext';
 import './App.css';
 
 // Word validation cache to avoid repeated API calls
 const wordCache = {};
 const validationQueue = new Set(); // Track ongoing validations to prevent duplicates
+
+// No fallback word list - API must be working for game to function
 
 const useWebSocket = (lobbyId, playerId, players, setPlayers) => {
     const [gameState, setGameState] = useState(null);
@@ -43,7 +46,7 @@ const useWebSocket = (lobbyId, playerId, players, setPlayers) => {
         });
 
         socket.on('gameStarted', (data) => {
-            console.log('Game started:', data);
+            console.log('Game started event received:', data);
             setGameState(data);
         });
 
@@ -169,6 +172,11 @@ const WordHuntGame = () => {
     const [validatingWord, setValidatingWord] = useState(false);
     const [gameEnded, setGameEnded] = useState(false);
     const validationTimeoutRef = useRef(null);
+    const [apiStatus, setApiStatus] = useState('unknown');
+    const [scoreSaved, setScoreSaved] = useState(false);
+
+    // Authentication
+    const { user, isAuthenticated, updateUserStats } = useAuth();
 
     // Game settings
     const [gridSize, setGridSize] = useState(5);
@@ -188,9 +196,45 @@ const WordHuntGame = () => {
         }
     }, [playerId]);
 
+    // Test API status on component mount
+    useEffect(() => {
+        const testApi = async () => {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+                const response = await fetch('http://localhost:9091/validate-word/test', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                    signal: controller.signal,
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
+
+                clearTimeout(timeoutId);
+
+                if (response.ok) {
+                    const result = await response.json();
+                    setApiStatus('working');
+                    console.log('Word validation service test result: Working', result.source);
+                } else {
+                    setApiStatus('error');
+                    console.log('Word validation service test result: Error', response.status);
+                }
+            } catch (error) {
+                setApiStatus('error');
+                console.log('Word validation service test failed:', error.name, error.message);
+            }
+        };
+        testApi();
+    }, []);
+
     // Handle game state from server
     useEffect(() => {
         if (gameState && gameState.isActive) {
+            console.log('Setting game state from server:', gameState);
             setGrid(gameState.grid);
             setTimeLeft(gameState.timeLeft);
             setIsGameActive(true);
@@ -210,8 +254,23 @@ const WordHuntGame = () => {
         } else if (timeLeft === 0 && isGameActive) {
             setIsGameActive(false);
             setGameEnded(true);
+
+            // Save score to user profile if authenticated
+            if (isAuthenticated && !scoreSaved) {
+                const currentPlayer = players.find(p => p.id === playerId);
+                if (currentPlayer) {
+                    updateUserStats(currentPlayer.score).then(result => {
+                        if (result.success) {
+                            console.log('Score saved successfully:', result.stats);
+                            setScoreSaved(true);
+                        } else {
+                            console.error('Failed to save score:', result.message);
+                        }
+                    });
+                }
+            }
         }
-    }, [timeLeft, isGameActive]);
+    }, [timeLeft, isGameActive, isAuthenticated, scoreSaved, players, playerId, updateUserStats]);
 
     const validateWord = async (word) => {
         const lowerWord = word.toLowerCase().trim();
@@ -226,6 +285,8 @@ const WordHuntGame = () => {
             console.log('Found in cache:', lowerWord, wordCache[lowerWord]);
             return wordCache[lowerWord];
         }
+
+        // No fallback - API must be working
 
         // Check if validation is already in progress
         if (validationQueue.has(lowerWord)) {
@@ -247,22 +308,58 @@ const WordHuntGame = () => {
         validationQueue.add(lowerWord);
 
         try {
-            console.log('Fetching from API:', lowerWord);
-            const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${lowerWord}`, {
+            console.log('Validating word:', lowerWord);
+
+            // Create a more robust timeout mechanism
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+            // Use our own server endpoint
+            const response = await fetch(`http://localhost:9091/validate-word/${lowerWord}`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
                 },
-                // Add timeout to prevent hanging requests
-                signal: AbortSignal.timeout(5000)
+                signal: controller.signal,
+                mode: 'cors',
+                cache: 'no-cache'
             });
-            const isValid = response.ok;
-            console.log('API response:', lowerWord, isValid);
-            wordCache[lowerWord] = isValid;
-            return isValid;
+
+            clearTimeout(timeoutId);
+
+            console.log('Validation response status:', response.status, response.statusText);
+
+            if (response.ok) {
+                const result = await response.json();
+                const isValid = result.valid;
+                console.log('Validation result:', lowerWord, isValid, result.source, result.reason);
+
+                wordCache[lowerWord] = isValid;
+                return isValid;
+            } else {
+                console.log('Validation endpoint error for word:', lowerWord);
+                wordCache[lowerWord] = false;
+                return false;
+            }
         } catch (error) {
             console.error('Error validating word:', error);
-            // Cache failed requests as invalid to prevent repeated attempts
+            console.error('Error details:', error.name, error.message);
+
+            // Show user-friendly error message
+            if (error.name === 'AbortError') {
+                console.log('Request timed out for word:', lowerWord);
+            } else if (error.name === 'TypeError') {
+                console.log('Network error for word:', lowerWord);
+            }
+
+            // For timeout errors, don't cache as invalid immediately - might be temporary
+            if (error.name === 'AbortError') {
+                // Remove from queue but don't cache the result
+                validationQueue.delete(lowerWord);
+                return false;
+            }
+
+            // Cache other failed requests as invalid to prevent repeated attempts
             wordCache[lowerWord] = false;
             return false;
         } finally {
@@ -325,6 +422,48 @@ const WordHuntGame = () => {
             return;
         }
 
+        if (apiStatus === 'error') {
+            // Show error popup
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-slide-up';
+            errorMessage.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">⚠️</span>
+                    <div>
+                        <div class="font-bold">Cannot Start Game</div>
+                        <div class="text-sm opacity-90">Word validation API is not working</div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(errorMessage);
+
+            setTimeout(() => {
+                errorMessage.remove();
+            }, 5000);
+            return;
+        }
+
+        if (apiStatus === 'unknown') {
+            // Show warning popup
+            const warningMessage = document.createElement('div');
+            warningMessage.className = 'fixed top-4 right-4 bg-yellow-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-slide-up';
+            warningMessage.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">⏳</span>
+                    <div>
+                        <div class="font-bold">Testing API...</div>
+                        <div class="text-sm opacity-90">Please wait before starting the game</div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(warningMessage);
+
+            setTimeout(() => {
+                warningMessage.remove();
+            }, 3000);
+            return;
+        }
+
         console.log('Generating grid with size:', gridSize);
         const newGrid = generateGrid(gridSize);
         console.log('Grid generated:', newGrid);
@@ -337,17 +476,20 @@ const WordHuntGame = () => {
         setSelectedCells([]);
         setCurrentWord('');
         setSearchWord('');
+        setScoreSaved(false); // Reset score saved flag for new game
 
         // Reset all player scores
         resetPlayerScores();
 
         console.log('Moving to game screen');
-        sendMessage('startGame', {
+        const gameData = {
             grid: newGrid,
             gridSize,
             difficulty,
             gameDuration
-        });
+        };
+        console.log('Sending startGame with data:', gameData);
+        sendMessage('startGame', gameData);
         setScreen('game');
     };
 
@@ -676,7 +818,8 @@ const WordHuntGame = () => {
                                 Waiting for players... ({players.length}/8)
                             </p>
                             <p className="text-sm text-gray-500 mt-1">
-                                Connection: {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+                                Connection: {isConnected ? '🟢 Connected' : '🔴 Disconnected'} |
+                                API: {apiStatus === 'working' ? '🟢 Working' : apiStatus === 'error' ? '🔴 Error' : '🟡 Testing...'}
                             </p>
                         </div>
                         <button
@@ -812,10 +955,16 @@ const WordHuntGame = () => {
                                 console.log('Start Game button clicked');
                                 startGame();
                             }}
-                            disabled={players.length < 1}
-                            className="btn-success w-full text-xl py-5 flex items-center justify-center gap-3"
+                            disabled={players.length < 1 || apiStatus === 'error' || apiStatus === 'unknown'}
+                            className={`w-full text-xl py-5 flex items-center justify-center gap-3 ${players.length < 1 || apiStatus === 'error' || apiStatus === 'unknown'
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'btn-success'
+                                }`}
                         >
-                            <Play size={28} /> Start Game
+                            <Play size={28} />
+                            {apiStatus === 'error' ? 'API Error - Cannot Start' :
+                                apiStatus === 'unknown' ? 'Testing API...' :
+                                    'Start Game'}
                         </button>
                     )}
 
@@ -885,6 +1034,9 @@ const WordHuntGame = () => {
                             </h2>
                             <p className="text-lg text-gray-600 mt-1">
                                 {difficulty === 'easy' ? '🟢 Easy Mode' : '🔴 Hard Mode'} - {gridSize}×{gridSize} Grid
+                            </p>
+                            <p className="text-sm text-gray-500 mt-1">
+                                API: {apiStatus === 'working' ? '🟢 Working' : apiStatus === 'error' ? '🔴 Error' : '🟡 Testing...'}
                             </p>
                         </div>
                         <div className="flex items-center gap-6">
@@ -1046,6 +1198,9 @@ const WordHuntGame = () => {
                                         <span className="font-semibold">{player.name}</span>
                                         {player.id === playerId && (
                                             <span className="text-xs bg-primary-100 text-primary-600 px-2 py-1 rounded-full">You</span>
+                                        )}
+                                        {player.id === playerId && isAuthenticated && scoreSaved && (
+                                            <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full">💾 Saved</span>
                                         )}
                                     </div>
                                     <span className="font-bold text-lg">{player.score} pts</span>

@@ -14,8 +14,11 @@ services:
     build: ./server
     ports:
       - "9091:5000" # host:container
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgres://postgres:postgres@db:5432/mydb
+      JWT_SECRET: zNEBsJioQMrw7Kk073NgOdIoq0E47Hx5Yva7wq57v3A=
     depends_on:
       - db
     volumes:
