@@ -360,24 +360,215 @@ docker-compose up --build server
 
 ## Security
 
-### Environment Security
-- Environment variables are not committed to git
-- JWT secrets are generated securely
-- Database credentials are configurable
-- CORS is properly configured
+WordHunt implements comprehensive security measures to protect against common web application vulnerabilities and attacks.
 
-### Application Security
-- Passwords are hashed with bcrypt
-- JWT tokens have expiration dates
-- SQL injection protection with parameterized queries
-- Input validation on all endpoints
-- Rate limiting on API endpoints
+### 🛡️ Security Features
 
-### Deployment Security
-- Docker containers run as non-root users
-- Secrets are managed through environment variables
-- Database connections use SSL in production
-- Regular security updates for dependencies
+#### **Rate Limiting & DoS Protection**
+- **General Rate Limiting**: 100 requests per 15 minutes per IP address
+- **Authentication Rate Limiting**: 5 authentication attempts per 15 minutes per IP
+- **Speed Limiting**: Progressive delays for repeated requests (500ms delay after 50 requests)
+- **WebSocket Rate Limiting**: 30 events per minute per WebSocket connection
+- **Request Size Limits**: 10MB maximum request payload size
+
+#### **Input Validation & Sanitization**
+- **Password Requirements**: 
+  - Minimum 8 characters
+  - Must contain uppercase, lowercase, number, and special character
+  - Pattern: `^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])`
+- **Username Validation**: 3-30 alphanumeric characters only
+- **Email Validation**: Proper email format, maximum 100 characters
+- **Game Score Validation**: Integer between 0-10,000
+- **Word Validation**: 3+ letters, alphabetic characters only
+
+#### **Authentication & Session Security**
+- **JWT Token Security**: 
+  - 24-hour expiration (reduced from 7 days)
+  - SHA-256 token hashing for consistent session storage
+  - Server-side session validation on every request
+- **Account Lockout Protection**:
+  - Account locked after 5 failed login attempts
+  - 15-minute lockout duration
+  - IP-based rate limiting prevents brute force attacks
+  - Automatic unlock on successful login
+- **Password Security**: bcrypt hashing with 12 salt rounds
+
+#### **WebSocket Security**
+- **Authentication Required**: All WebSocket connections must be authenticated
+- **Token Validation**: JWT tokens validated on connection and for each event
+- **Rate Limiting**: Prevents spam/DoS attacks via WebSocket events
+- **Event Validation**: All WebSocket events are rate-limited and validated
+
+#### **Security Headers & CORS**
+- **Helmet.js Integration**: 
+  - Content Security Policy (CSP)
+  - HTTP Strict Transport Security (HSTS)
+  - X-Frame-Options, X-Content-Type-Options
+  - X-XSS-Protection headers
+- **CORS Protection**: Environment-specific origin restrictions
+- **Request Security**: Proper content-type validation
+
+#### **Comprehensive Logging & Monitoring**
+- **Security Audit Log**: All security events logged to database
+- **Login Attempt Tracking**: Detailed logging with IP, timestamp, success/failure
+- **Event Logging**: Registration, login, validation errors, rate limit violations
+- **Account Lockout Events**: Tracking of lockout triggers and releases
+
+### 🔒 Security Database Tables
+
+#### **login_attempts**
+```sql
+CREATE TABLE login_attempts (
+    id SERIAL PRIMARY KEY,
+    ip_address INET NOT NULL,
+    username VARCHAR(50),
+    attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    success BOOLEAN NOT NULL,
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### **security_settings**
+```sql
+CREATE TABLE security_settings (
+    id SERIAL PRIMARY KEY,
+    setting_name VARCHAR(100) UNIQUE NOT NULL,
+    setting_value TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### **security_audit_log**
+```sql
+CREATE TABLE security_audit_log (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    event_type VARCHAR(50) NOT NULL,
+    event_description TEXT NOT NULL,
+    ip_address INET,
+    user_agent TEXT,
+    additional_data JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### **Enhanced users table**
+```sql
+-- Additional security fields added to users table
+ALTER TABLE users ADD COLUMN locked_until TIMESTAMP NULL;
+ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN last_failed_login TIMESTAMP NULL;
+```
+
+### 🚨 Attack Prevention
+
+#### **Brute Force Protection**
+- Account lockout after 5 failed attempts
+- IP-based rate limiting (5 attempts per 15 minutes)
+- Progressive delays for repeated attempts
+- Comprehensive logging of all attempts
+
+#### **DoS Attack Prevention**
+- Rate limiting on all endpoints (100 requests per 15 minutes)
+- WebSocket event rate limiting (30 events per minute)
+- Request size limits (10MB maximum)
+- Speed limiting with progressive delays
+
+#### **Injection Attack Prevention**
+- Input validation with Joi schemas
+- Parameterized database queries (SQL injection protection)
+- XSS protection via Content Security Policy
+- Proper content-type validation
+
+#### **Session Hijacking Prevention**
+- Shorter JWT token expiration (24 hours)
+- Consistent token hashing for session storage
+- Server-side session validation on every request
+- Secure token transmission
+
+### 🔍 Security Monitoring
+
+#### **Real-time Monitoring**
+- All security events logged to `security_audit_log` table
+- Failed login attempts tracked with IP and timestamp
+- Rate limit violations logged with details
+- Account lockout events recorded
+
+#### **Security Event Types**
+- `LOGIN_SUCCESS` / `LOGIN_FAILED`
+- `REGISTRATION_SUCCESS` / `REGISTRATION_FAILED`
+- `RATE_LIMIT_EXCEEDED`
+- `VALIDATION_ERROR`
+- `ACCOUNT_LOCKED` / `ACCOUNT_UNLOCKED`
+
+### 🛠️ Security Configuration
+
+#### **Configurable Security Settings**
+```sql
+-- Default security settings in database
+INSERT INTO security_settings VALUES
+('max_login_attempts', '5', 'Maximum failed login attempts before lockout'),
+('lockout_duration_minutes', '15', 'Duration of account lockout in minutes'),
+('rate_limit_window_minutes', '15', 'Rate limiting window in minutes'),
+('rate_limit_max_requests', '100', 'Maximum requests per window per IP'),
+('auth_rate_limit_max_requests', '5', 'Maximum auth requests per window per IP');
+```
+
+#### **Environment Security**
+- Environment variables not committed to git
+- JWT secrets generated securely
+- Database credentials configurable
+- CORS properly configured for production
+
+#### **Dependencies Security**
+- **express-rate-limit**: API rate limiting
+- **express-slow-down**: Progressive request delays
+- **helmet**: Security headers
+- **joi**: Input validation
+- **bcryptjs**: Password hashing
+- **jsonwebtoken**: JWT token management
+
+### 🚀 Production Security Recommendations
+
+1. **Environment Variables**: Use strong, unique JWT secrets
+2. **Database Security**: Enable SSL connections in production
+3. **HTTPS**: Always use HTTPS in production
+4. **Regular Updates**: Keep dependencies updated
+5. **Monitoring**: Monitor security audit logs regularly
+6. **Backup**: Regular database backups including security logs
+
+### 🔧 Security Testing
+
+#### **Test Rate Limiting**
+```bash
+# Test authentication rate limiting
+for i in {1..6}; do 
+  curl -X POST http://localhost:9091/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"username":"test","password":"wrong"}'
+done
+```
+
+#### **Test Input Validation**
+```bash
+# Test weak password rejection
+curl -X POST http://localhost:9091/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","email":"test@test.com","password":"weak"}'
+```
+
+#### **Test Account Lockout**
+```bash
+# Test account lockout after failed attempts
+for i in {1..6}; do 
+  curl -X POST http://localhost:9091/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"username":"existinguser","password":"wrongpassword"}'
+done
+```
 
 ## Troubleshooting
 
