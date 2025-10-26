@@ -39,16 +39,8 @@ NODE_ENV=development
 
 ## What's Protected:
 
-- ✅ `.env` files are in `.gitignore`
-- ✅ `node_modules/` are in `.gitignore`
-- ✅ Database files are in `.gitignore`
-- ✅ JWT secret is required from environment variables
-- ✅ No hardcoded secrets in the code
-
-## What's Safe to Push:
-
-- ✅ Source code
-- ✅ Configuration files (without secrets)
-- ✅ Database migrations
-- ✅ Docker files
-- ✅ Package.json files
+- `.env` files are in `.gitignore`
+- `node_modules/` are in `.gitignore`
+- Database files are in `.gitignore`
+- JWT secret is required from environment variables
+- No hardcoded secrets in the code

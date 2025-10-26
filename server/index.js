@@ -414,7 +414,18 @@ io.on('connection', (socket) => {
         };
 
         console.log(`Broadcasting game start to lobby ${playerData.lobbyId} with ${lobby.players.length} players`);
-        io.to(playerData.lobbyId).emit('gameStarted', lobby.gameState);
+
+        // Send only the necessary game data to avoid circular references
+        const gameData = {
+            grid: lobby.gameState.grid,
+            gridSize: lobby.gameState.gridSize,
+            difficulty: lobby.gameState.difficulty,
+            gameDuration: lobby.gameState.gameDuration,
+            isActive: lobby.gameState.isActive,
+            timeLeft: lobby.gameState.timeLeft
+        };
+
+        io.to(playerData.lobbyId).emit('gameStarted', gameData);
         console.log(`Game started in lobby ${playerData.lobbyId}`);
     });
 
